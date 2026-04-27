@@ -6,19 +6,616 @@
 <title>Cindy Income Insights</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-/* ...（前面样式原样保留）... */
+/* ========== 新增：明暗模式基础样式 ========== */
+:root {
+  /* 默认暗色模式 */
+  --bg: #000000;
+  --card-bg: rgba(28, 28, 30, 0.7);
+  --accent: #3E7BFA;
+  --text-main: #FFFFFF;
+  --text-dim: #86868B;
+  --border: rgba(255, 255, 255, 0.08);
+  --success: #32D74B;
+  --danger: #FF453A;
+  --font-mono: Consolas, "Courier New", monospace, "Microsoft YaHei Mono", "SimHei", "WenQuanYi Micro Hei";
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Microsoft YaHei", "SimHei";
+  /* 过渡效果 */
+  --transition: all 0.3s ease;
+}
 
-/* 以下欠款相关的样式你可直接删除，或者留着不影响功能
-.debts-card { ... }
-.debts-total { ... }
-*/
+/* 亮色模式变量覆盖 */
+.light-mode {
+  --bg: #FFFFFF;
+  --card-bg: rgba(245, 245, 247, 0.9);
+  --accent: #007AFF;
+  --text-main: #1D1D1F;
+  --text-dim: #6E6E73;
+  --border: rgba(0, 0, 0, 0.08);
+  --success: #34C759;
+  --danger: #FF3B30;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-smooth: always;
+  /* 应用过渡效果 */
+  transition: var(--transition);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  color: var(--text-main);
+  padding: 20px 15px;
+  overflow-x: hidden;
+  width: 100vw;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: -10%;
+  right: -5%;
+  width: 50vw;
+  height: 50vh;
+  background: radial-gradient(circle, rgba(62, 123, 250, 0.15) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ========== 新增：主题切换按钮样式 ========== */
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.theme-toggle svg {
+  width: 20px;
+  height: 20px;
+  fill: var(--text-main);
+}
+
+.dashboard {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s ease;
+}
+
+.dashboard.loaded {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+header {
+  padding: 30px 5px 20px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(62,123,250,0.1);
+  border: 1px solid rgba(62,123,250,0.2);
+  border-radius: 100px;
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.title-en {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  font-family: var(--font-sans);
+}
+
+.title-zh {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  font-family: var(--font-sans);
+}
+
+.total-card {
+  background: linear-gradient(145deg, #1c1c1e 0%, #050505 100%);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 30px 20px;
+  margin-bottom: 20px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+/* ========== 修改：适配亮色模式的渐变背景 ========== */
+.light-mode .total-card {
+  background: linear-gradient(145deg, #f5f5f7 0%, #ffffff 100%);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+}
+
+.total-card .label {
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 1.5px;
+  margin-bottom: 15px;
+  display: block;
+  font-family: var(--font-mono);
+}
+
+.amount-container {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 25px;
+}
+
+.amount {
+  font-size: clamp(36px, 10vw, 56px);
+  font-weight: 800;
+  font-family: var(--font-mono);
+  letter-spacing: -2px;
+  -webkit-font-feature-settings: "tnum";
+  -moz-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
+}
+
+.bar-bg {
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 10px;
+}
+
+/* ========== 修改：适配亮色模式的进度条背景 ========== */
+.light-mode .bar-bg {
+  background: rgba(0,0,0,0.06);
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0;
+  transition: width 1.5s ease-out;
+  box-shadow: 0 0 10px var(--accent);
+}
+
+.bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  margin-top: 10px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  width: 100%;
+}
+
+@media (min-width: 850px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 24px;
+  width: 100%;
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+}
+
+.header-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.card-title-en {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: var(--font-mono);
+}
+
+.card-title-zh {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  font-family: var(--font-sans);
+}
+
+.toggle-nav {
+  background: rgba(255,255,255,0.06);
+  padding: 3px;
+  border-radius: 10px;
+  display: flex;
+}
+
+/* ========== 修改：适配亮色模式的切换导航背景 ========== */
+.light-mode .toggle-nav {
+  background: rgba(0,0,0,0.06);
+}
+
+.toggle-nav button {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+
+.toggle-nav button.active {
+  background: var(--accent);
+  color: white;
+}
+
+.salary-list {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.salary-item {
+  padding: 12px 15px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ========== 修改：适配亮色模式的薪资项背景 ========== */
+.light-mode .salary-item {
+  background: rgba(0,0,0,0.03);
+}
+
+.item-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+}
+
+.item-val {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  -webkit-font-feature-settings: "tnum";
+  -moz-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
+}
+
+.expense-flex {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
+
+@media (min-width: 500px) {
+  .expense-flex {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+.donut-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 180px;
+}
+
+.donut-box {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#expenseChart {
+  display: block;
+  margin: 0 auto;
+  z-index: 1;
+  position: relative;
+}
+
+.donut-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  z-index: 0;
+  background-color: rgba(28, 28, 30, 0.8);
+  border-radius: 50%;
+  padding: 20px;
+}
+
+/* ========== 修改：适配亮色模式的环形图中心背景 ========== */
+.light-mode .donut-center {
+  background-color: rgba(245, 245, 247, 0.8);
+}
+
+.donut-center b {
+  font-size: 20px;
+  color: var(--success);
+  font-family: var(--font-mono);
+  display: block;
+  line-height: 1;
+  margin-top: 2px;
+  -webkit-font-feature-settings: "tnum";
+  -moz-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
+}
+
+.donut-center span {
+  line-height: 1;
+  font-size: 9px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.expense-legend {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.legend-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  max-width: 200px;
+}
+
+.savings-banner {
+  margin-top: 15px;
+  padding: 15px;
+  border: 1px solid var(--success);
+  background: rgba(50, 215, 75, 0.05);
+  border-radius: 16px;
+  text-align: center;
+  width: 100%;
+}
+
+.savings-banner span {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.savings-banner b {
+  font-size: 22px;
+  color: var(--success);
+  font-family: var(--font-mono);
+  display: block;
+  margin-top: 4px;
+  -webkit-font-feature-settings: "tnum";
+  -moz-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
+}
+
+.insight-mini-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+@media (min-width: 600px) {
+  .insight-mini-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.mini-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mini-card .val {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  -webkit-font-feature-settings: "tnum";
+  -moz-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
+}
+
+.mini-card .desc {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+canvas {
+  font-family: var(--font-mono) !important;
+}
+
+.extra-income-expense-card {
+  margin-top: 20px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 24px;
+  width: 100%;
+  backdrop-filter: blur(20px);
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.input-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  width: 80px;
+}
+
+.input-field {
+  flex: 1;
+  padding: 10px 15px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+}
+
+/* ========== 修改：适配亮色模式的输入框背景 ========== */
+.light-mode .input-field {
+  background: rgba(0,0,0,0.03);
+}
+
+.input-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(62, 123, 250, 0.2);
+}
+
+.submit-btn {
+  margin-top: 20px;
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.submit-btn:hover {
+  background: #2a66e0;
+}
+
+/* ========== 修改：适配亮色模式的按钮hover效果 ========== */
+.light-mode .submit-btn:hover {
+  background: #0066CC;
+}
+
+.result-display {
+  margin-top: 15px;
+  padding: 15px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 14px;
+  text-align: center;
+}
+
+/* ========== 修改：适配亮色模式的结果显示背景 ========== */
+.light-mode .result-display {
+  background: rgba(0,0,0,0.03);
+}
+
+.result-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.result-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--success);
+  font-family: var(--font-mono);
+  margin-top: 5px;
+}
 </style>
 </head>
 <body>
 <!-- ========== 新增：主题切换按钮 ========== -->
 <div class="theme-toggle" id="themeToggle">
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <path d="M12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16M12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18M20,11H23V13H20V11M1,11H4V13H1V11M13,1V4L11,6L13,8V[...]"/>
+    <path d="M12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16M12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18M20,11H23V13H20V11M1,11H4V13H1V11M13,1V4L11,6L13,8V11H16V8C18.76,8 21,5.76 21,3A2,2 0 0,0 19,1H13M11,20V17L13,15L11,13V10H8V13C5.24,13 3,15.24 3,18A2,2 0 0,0 5,20H11Z" />
   </svg>
 </div>
 
@@ -117,11 +714,405 @@
 </div>
 </div>
 
-<!-- 欠款栏目已删除 -->
-
 </div>
 <script>
-/* ...（JS保留，未用到欠款部分）... */
+// 全局数据模型
+let dataModel = {};
+const DATA_JSON_PATH = './data.json';
+
+function format(n) {
+return new Intl.NumberFormat('zh-CN', {
+    useGrouping: true,
+    maximumFractionDigits: 0
+}).format(n);
+}
+
+function calculatePercentage(value, total) {
+    return ((value / total) * 100).toFixed(2) + '%';
+}
+
+function animateValue(id, end) {
+let start = 0;
+let obj = document.getElementById(id);
+let timer = setInterval(() => {
+start += Math.ceil(end / 30);
+if (start >= end) {
+obj.innerText = format(end);
+clearInterval(timer);
+} else {
+obj.innerText = format(start);
+}
+}, 30);
+}
+
+async function loadDataFromJSON() {
+try {
+const response = await fetch(DATA_JSON_PATH);
+if (!response.ok) throw new Error('数据文件加载失败');
+dataModel = await response.json();
+} catch (error) {
+dataModel = {
+    year: {
+        Gross: 208000,
+        net: 168400,
+        ss: 20160,
+        fund: 13440,
+        tax: 6000,
+        items: [
+            ['Gross',208000],
+            ['社保合计',20160],
+            ['公积金合计',13440],
+            ['个税合计',6000],
+            ['Net',168400,true]
+        ]
+    },
+    month: {
+        net: 12999,
+        ss: 1680,
+        fund: 1120,
+        tax: 201,
+        items: [
+            ['税前月薪',16000],
+            ['社保扣除',1680],
+            ['公积金扣除',1120],
+            ['个税预估',201],
+            ['到手净额',12999,true]
+        ]
+    },
+    monthNetIncome: [12999, 12999, 12999, 12999, 12999, 12705, 12530, 12530, 12530, 12530, 12530, 12530],
+    monthExpense: 6350,
+    expenseDetail: [2850, 2000, 500, 1000],
+    monthSaving: 6649
+};
+console.warn('使用默认数据:', error);
+}
+}
+
+function calculateExtraSavings() {
+    const extraAnnualIncome = parseFloat(document.getElementById('extraIncome').value) || 0;
+    const extraAnnualExpense = parseFloat(document.getElementById('extraExpense').value) || 0;
+    const originalAnnualSaving = parseFloat(document.getElementById('annualSavings').innerText.replace(/[^\d]/g, '')) || 0;
+    const adjustedAnnualSaving = Math.max(0, originalAnnualSaving + extraAnnualIncome - extraAnnualExpense);
+    document.getElementById('adjustedSavings').textContent = `¥${format(adjustedAnnualSaving)}`;
+    alert(`已更新储蓄数据！\n调整后年度储蓄：¥${format(adjustedAnnualSaving)}`);
+}
+
+let ratioChart, expenseChart, trendChart;
+
+function updateView(type, btn) {
+document.querySelectorAll('.toggle-nav button').forEach(b => b.classList.remove('active'));
+btn.classList.add('active');
+const d = dataModel[type];
+document.getElementById('salaryList').innerHTML = d.items.map(i => `
+<div class="salary-item" ${i[2] ? 'style="border:1px solid var(--accent);background:rgba(62,123,250,0.05)"':''}>
+<span class="item-label">${i[0]}</span>
+<span class="item-val" ${i[2] ? 'style="color:var(--accent)"':''}>¥${format(i[1])}</span>
+</div>
+`).join('');
+if(ratioChart) {
+    if (type === 'year') {
+        ratioChart.data.datasets[0].data = [d.net, d.ss, d.fund, d.tax];
+        ratioChart.data.labels = ['Net', '社保合计', '公积金合计', '个税合计'];
+    } else {
+        ratioChart.data.datasets[0].data = [d.net, d.ss, d.fund, d.tax];
+        ratioChart.data.labels = ['到手净额', '社保扣除', '公积金扣除', '个税预估'];
+    }
+    ratioChart.update();
+}
+}
+
+function renderExpenseLegend() {
+const legendContainer = document.getElementById('expenseLegend');
+const labels = ['房租', '餐饮', '交通', '其他'];
+const colors = ['#3E7BFA', '#32D74B', '#FF9500', '#FF453A'];
+
+legendContainer.innerHTML = '';
+labels.forEach((label, index) => {
+const legendItem = document.createElement('div');
+legendItem.className = 'legend-item';
+legendItem.dataset.index = index;
+legendItem.innerHTML = `
+    <span class="legend-color" style="background-color: ${colors[index]}"></span>
+    <span>${label}</span>
+`;
+legendItem.addEventListener('click', () => {
+    const dataset = expenseChart.data.datasets[0];
+    if (dataset.data[index] === null) {
+        const originalData = dataModel.expenseDetail;
+        dataset.data[index] = originalData[index];
+        legendItem.style.opacity = '1';
+    } else {
+        dataset.data[index] = null;
+        legendItem.style.opacity = '0.5';
+    }
+    expenseChart.update();
+});
+legendContainer.appendChild(legendItem);
+});
+}
+
+function initCharts() {
+Chart.defaults.font.family = 'Consolas, "Courier New", monospace, "Microsoft YaHei Mono", "SimHei"';
+Chart.defaults.color = '#86868B';
+Chart.defaults.font.size = 10;
+
+ratioChart = new Chart(document.getElementById('ratioChart'), {
+type: 'doughnut',
+data: {
+    labels: ['Net', '社保合计', '公积金合计', '个税合计'],
+    datasets: [{
+        data: [dataModel.year.net, dataModel.year.ss, dataModel.year.fund, dataModel.year.tax],
+        backgroundColor: ['#3E7BFA', '#232326', '#444444', '#FF453A'],
+        borderWidth: 0,
+        cutout: '82%',
+        borderRadius: 12
+    }]
+},
+options: {
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            display: true,
+            position: 'bottom',
+            labels: {
+                padding: 15,
+                font: { 
+                    size: 10,
+                    family: 'Consolas, "Courier New", monospace'
+                }
+            }
+        },
+        tooltip: {
+            callbacks: {
+                label: function(context) {
+                    const label = context.label || '';
+                    const value = context.raw;
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percentage = calculatePercentage(value, total);
+                    return `${label}: ¥${format(value)} (${percentage})`;
+                }
+            },
+            titleFont: { family: 'Consolas, "Courier New", monospace' },
+            bodyFont: { family: 'Consolas, "Courier New", monospace' }
+        }
+    }
+}
+});
+
+trendChart = new Chart(document.getElementById('trendChart'), {
+type: 'line',
+data: {
+    labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+    datasets: [
+        {
+            label: '到手薪资',
+            data: dataModel.monthNetIncome,
+            borderColor: '#3E7BFA',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            backgroundColor: 'rgba(62,123,250,0.05)',
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            pointBackgroundColor: '#3E7BFA',
+            pointHoverBackgroundColor: '#FFFFFF'
+        },
+        {
+            label: '税前薪资',
+            data: Array(12).fill(16000),
+            borderColor: '#444',
+            borderDash: [5,5],
+            borderWidth: 2,
+            tension: 0,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            pointBackgroundColor: '#444',
+            pointHoverBackgroundColor: '#FFFFFF'
+        },
+        {
+            label: '月度支出',
+            data: Array(12).fill(dataModel.monthExpense),
+            borderColor: '#FF453A',
+            borderWidth: 2,
+            tension: 0,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            pointBackgroundColor: '#FF453A',
+            pointHoverBackgroundColor: '#FFFFFF'
+        }
+    ]
+},
+options: {
+    maintainAspectRatio: false,
+    interaction: {
+        mode: 'index',
+        intersect: false,
+        axis: 'x'
+    },
+    scales: {
+        y: {
+            min: 0,
+            ticks: {
+                stepSize: 2000,
+                size: 9,
+                font: { family: 'Consolas, "Courier New", monospace' }
+            },
+            grid: { color: 'rgba(255,255,255,0.02)' }
+        },
+        x: {
+            grid: { display: false },
+            ticks: { font: { family: 'Consolas, "Courier New", monospace' } }
+        }
+    },
+    plugins: {
+        legend: {
+            display: true,
+            position: 'top',
+            labels: {
+                padding: 15,
+                font: { size: 10, family: 'Consolas, "Courier New", monospace' }
+            }
+        },
+        tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 8,
+            titleFont: {
+                size: 12,
+                weight: 'bold',
+                family: 'Consolas, "Courier New", monospace'
+            },
+            bodyFont: {
+                size: 11,
+                family: 'Consolas, "Courier New", monospace'
+            },
+            callbacks: {
+                title: function(context) {
+                    return `${context[0].label} 收支明细`;
+                },
+                label: function(context) {
+                    const label = context.dataset.label || '';
+                    const value = context.raw;
+                    return `${label}: ¥${format(value)}`;
+                },
+                footer: function(context) {
+                    const income = context.find(item => item.dataset.label === '到手薪资')?.raw || 0;
+                    const expense = context.find(item => item.dataset.label === '月度支出')?.raw || 0;
+                    const saving = income - expense;
+                    return `当月储蓄: ¥${format(saving)}`;
+                }
+            }
+        }
+    },
+    animation: {
+        duration: 1000,
+        easing: 'easeOutQuart'
+    }
+}
+});
+
+expenseChart = new Chart(document.getElementById('expenseChart'), {
+type: 'doughnut',
+data: {
+    labels: ['房租', '餐饮', '交通', '其他'],
+    datasets: [{
+        data: dataModel.expenseDetail,
+        backgroundColor: ['#3E7BFA', '#32D74B', '#FF9500', '#FF453A'],
+        borderWidth: 0,
+        cutout: '82%',
+        borderRadius: 12
+    }]
+},
+options: {
+    maintainAspectRatio: false,
+    layout: { padding: { top:0, right:0, bottom:0, left:0 } },
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+            callbacks: {
+                label: function(context) {
+                    const label = context.label || '';
+                    const value = context.raw;
+                    const total = context.dataset.data.reduce((a, b) => a + (b || 0), 0);
+                    const percentage = calculatePercentage(value, total);
+                    return `${label}: ¥${format(value)} (${percentage})`;
+                }
+            },
+            titleFont: { family: 'Consolas, "Courier New", monospace' },
+            bodyFont: { family: 'Consolas, "Courier New", monospace' }
+        }
+    }
+}
+});
+
+renderExpenseLegend();
+}
+
+// ========== 新增：主题切换核心功能 ==========
+function initThemeToggle() {
+  // 从本地存储获取主题偏好
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  
+  // 设置初始主题
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+  }
+  
+  // 绑定切换事件
+  document.getElementById('themeToggle').addEventListener('click', function() {
+    // 切换主题类
+    document.body.classList.toggle('light-mode');
+    
+    // 保存主题偏好到本地存储
+    const currentTheme = document.body.classList.contains('light-mode') ? 'light' : 'dark';
+    localStorage.setItem('theme', currentTheme);
+    
+    // 更新图表颜色以适配新主题
+    updateChartsForTheme(currentTheme);
+  });
+}
+
+// ========== 新增：更新图表颜色适配主题 ==========
+function updateChartsForTheme(theme) {
+  if (!ratioChart || !trendChart || !expenseChart) return;
+  
+  // 根据主题设置图表颜色
+  const textColor = theme === 'light' ? '#6E6E73' : '#86868B';
+  const gridColor = theme === 'light' ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)';
+  const tooltipBg = theme === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)';
+  const tooltipBorder = theme === 'light' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)';
+  
+  // 更新全局Chart配置
+  Chart.defaults.color = textColor;
+  
+  // 更新趋势图
+  trendChart.options.scales.y.grid.color = gridColor;
+  trendChart.options.plugins.tooltip.backgroundColor = tooltipBg;
+  trendChart.options.plugins.tooltip.borderColor = tooltipBorder;
+  
+  // 更新收入占比图
+  ratioChart.data.datasets[0].backgroundColor = theme === 'light' 
+    ? ['#007AFF', '#E5E5EA', '#D1D1D6', '#FF3B30'] 
+    : ['#3E7BFA', '#232326', '#444444', '#FF453A'];
+  
+  // 更新所有图表
+  ratioChart.update();
+  trendChart.update();
+  expenseChart.update();
+}
+
+// 页面加载入口
+window.onload = async () => {
+  await loadDataFromJSON();
+  document.getElementById('dashboard').classList.add('loaded');
+  setTimeout(() => document.getElementById('progressBar').style.width = '80.96%', 300);
+  animateValue('mainAmount', dataModel.year.Gross);
+  updateView('year', document.querySelector('.toggle-nav button'));
+  initCharts();
+  initThemeToggle();
+};
 </script>
 </body>
 </html>
